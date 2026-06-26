@@ -1,41 +1,60 @@
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
+/**
+ * AUTH CONTEXT - VERSION STABLE
+ * Sans vérification expiration côté frontend
+ * Le backend gère les tokens invalides
+ */
+
+import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-interface AuthContextType {
+type AuthContextType = {
   token: string | null;
   setToken: (token: string | null) => void;
-  logout: () => void;
-  isLoading: boolean;
-}
+  logout: () => Promise<void>;
+};
 
 export const AuthContext = createContext<AuthContextType>({
   token: null,
   setToken: () => {},
-  logout: () => {},
-  isLoading: true,
+  logout: async () => {},
 });
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export const AuthProvider = ({ children }: any) => {
+  const [token, setTokenState] = useState<string | null>(null);
 
+  // Charge le token au démarrage SANS vérifier l'expiration
   useEffect(() => {
     const loadToken = async () => {
-      const storedToken = await AsyncStorage.getItem('token');
-      if (storedToken) setToken(storedToken);
-      setIsLoading(false);
+      try {
+        const stored = await AsyncStorage.getItem('token');
+        setTokenState(stored);
+      } catch (error) {
+        setTokenState(null);
+      }
     };
-
     loadToken();
   }, []);
 
+  const setToken = async (newToken: string | null) => {
+    try {
+      if (newToken) {
+        await AsyncStorage.setItem('token', newToken);
+      } else {
+        await AsyncStorage.removeItem('token');
+      }
+      setTokenState(newToken);
+    } catch (error) {
+      console.log('Set token error:', error);
+    }
+  };
+
   const logout = async () => {
     await AsyncStorage.removeItem('token');
-    setToken(null);
+    setTokenState(null);
   };
 
   return (
-    <AuthContext.Provider value={{ token, setToken, logout, isLoading }}>
+    <AuthContext.Provider value={{ token, setToken, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -85,6 +85,10 @@ const ImageUploadScreen = ({ navigation }: any) => {
         type: image.type || 'image/jpeg',
       } as any);
 
+      console.log(
+      'URL UPLOAD =',
+      `${BACKEND_URL}/api/images/upload`
+      );
       // Envoi vers backend
       const response = await fetch(`${BACKEND_URL}/api/images/upload`, {
         method: 'POST',

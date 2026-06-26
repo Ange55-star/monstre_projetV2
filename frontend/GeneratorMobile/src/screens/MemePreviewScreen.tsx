@@ -1,163 +1,204 @@
 /**
  * =====================================================
- * REGISTER SCREEN
+ * MEME PREVIEW SCREEN
  * =====================================================
- * ✔ Inscription utilisateur
- * ✔ URL ngrok stable
+ * ✔ Affiche résultat image uploadée
+ * ✔ Compatible audio + image
+ * ✔ Sauvegarde dans historique (AsyncStorage)
+ * ✔ Navigation retour Home
  */
 
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
-  Alert,
+  Image,
   TouchableOpacity,
-  ActivityIndicator,
+  ScrollView,
+  Alert,
 } from 'react-native';
 
-import { BACKEND_URL } from '../config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const RegisterScreen = ({ navigation }: any) => {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+const MemePreviewScreen = ({ route, navigation }: any) => {
+  // Données reçues depuis ImageUpload ou AudioRecord
+  const { imageUrl, audioDuration, fromAudio, caption } = route.params || {};
 
   /**
-   * 📝 Inscription utilisateur
+   * 💾 Sauvegarde automatique dans l'historique
    */
-  const handleRegister = async () => {
-    if (!username || !email || !password) {
-      Alert.alert('Erreur', 'Remplis tous les champs');
-      return;
-    }
+  useEffect(() => {
+    saveMemeToHistory();
+  }, []);
 
+  const saveMemeToHistory = async () => {
     try {
-      setLoading(true);
+      const existing = await AsyncStorage.getItem('memes');
+      const memes = existing ? JSON.parse(existing) : [];
 
-      const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true',
-        },
-        body: JSON.stringify({ username, email, password }),
-      });
+      const newMeme = {
+        id: Date.now(),
+        title: fromAudio ? '🎤 Meme Audio' : '🖼 Meme Image',
+        imageUrl: imageUrl || null,
+        audioDuration: audioDuration || null,
+        caption: caption || null,
+        createdAt: new Date().toLocaleDateString('fr-FR'),
+      };
 
-      const data = await response.json();
-
-      if (response.ok) {
-        Alert.alert('Succès ✅', 'Compte créé ! Connecte-toi.');
-        navigation.navigate('Login');
-      } else {
-        Alert.alert('Erreur', data.error || data.message || "Erreur inscription");
-      }
-    } catch (error: any) {
-      Alert.alert('Erreur réseau', error.message);
-    } finally {
-      setLoading(false);
+      const updated = [newMeme, ...memes];
+      await AsyncStorage.setItem('memes', JSON.stringify(updated));
+    } catch (error) {
+      console.log('Save history error:', error);
     }
   };
 
+  const handleShare = () => {
+    Alert.alert('Partager', 'Fonctionnalité bientôt disponible 🚀');
+  };
+
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
 
-      <Text style={styles.title}>🎭 Meme Generator</Text>
-      <Text style={styles.subtitle}>Créer un compte</Text>
+      {/* TITRE */}
+      <Text style={styles.title}>🎭 Ton Meme</Text>
 
-      {/* USERNAME */}
-      <TextInput
-        placeholder="Nom d'utilisateur"
-        value={username}
-        onChangeText={setUsername}
-        style={styles.input}
-      />
+      {/* IMAGE */}
+      {imageUrl ? (
+        <Image
+          source={{
+            uri: imageUrl,
+            headers: { 'ngrok-skip-browser-warning': 'true' },
+          }}
+          style={styles.image}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={styles.audioCard}>
+          <Text style={styles.audioIcon}>🎤</Text>
+          <Text style={styles.audioText}>Meme Audio</Text>
+          {audioDuration && (
+            <Text style={styles.audioDuration}>
+              Durée : {audioDuration}s
+            </Text>
+          )}
+        </View>
+      )}
 
-      {/* EMAIL */}
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        style={styles.input}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
+      {/* CAPTION GEMINI */}
+      {caption && (
+        <View style={styles.captionBox}>
+          <Text style={styles.captionText}>"{caption}"</Text>
+        </View>
+      )}
 
-      {/* MOT DE PASSE */}
-      <TextInput
-        placeholder="Mot de passe"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={styles.input}
-      />
+      {/* INFO */}
+      <Text style={styles.info}>✅ Sauvegardé dans l'historique</Text>
 
-      {/* BOUTON */}
-      <TouchableOpacity style={styles.button} onPress={handleRegister}>
-        {loading
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.buttonText}>S'inscrire</Text>
-        }
-      </TouchableOpacity>
-
-      {/* LIEN LOGIN */}
+      {/* PARTAGER */}
       <TouchableOpacity
-        style={{ marginTop: 20 }}
-        onPress={() => navigation.navigate('Login')}
+        style={[styles.button, { backgroundColor: '#ff9800' }]}
+        onPress={handleShare}
       >
-        <Text style={styles.link}>Déjà un compte ? Se connecter</Text>
+        <Text style={styles.buttonText}>📤 Partager</Text>
       </TouchableOpacity>
 
-    </View>
+      {/* NOUVEAU MEME */}
+      <TouchableOpacity
+        style={[styles.button, { backgroundColor: '#28a745' }]}
+        onPress={() => navigation.navigate('Home')}
+      >
+        <Text style={styles.buttonText}>🎭 Nouveau Meme</Text>
+      </TouchableOpacity>
+
+      {/* HISTORIQUE */}
+      <TouchableOpacity
+        style={[styles.button, { backgroundColor: '#6c757d' }]}
+        onPress={() => navigation.navigate('History')}
+      >
+        <Text style={styles.buttonText}>📜 Voir l'historique</Text>
+      </TouchableOpacity>
+
+    </ScrollView>
   );
 };
 
-export default RegisterScreen;
+export default MemePreviewScreen;
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
+    flexGrow: 1,
+    alignItems: 'center',
+    padding: 20,
     backgroundColor: '#f5f5f5',
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 6,
+    marginTop: 40,
+    marginBottom: 20,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 30,
+  image: {
+    width: 300,
+    height: 300,
+    borderRadius: 16,
+    marginBottom: 20,
   },
-  input: {
+  audioCard: {
+    width: 300,
+    height: 200,
     backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 14,
-    fontSize: 15,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    elevation: 3,
+  },
+  audioIcon: {
+    fontSize: 60,
+    marginBottom: 10,
+  },
+  audioText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  audioDuration: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 6,
+  },
+  captionBox: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    width: '100%',
+    elevation: 2,
+  },
+  captionText: {
+    fontSize: 16,
+    fontStyle: 'italic',
+    color: '#007AFF',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  info: {
+    fontSize: 13,
+    color: '#28a745',
+    marginBottom: 20,
   },
   button: {
     backgroundColor: '#007AFF',
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 12,
+    width: '100%',
     alignItems: 'center',
+    marginBottom: 12,
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  link: {
-    color: '#007AFF',
-    textAlign: 'center',
-    fontSize: 15,
   },
 });

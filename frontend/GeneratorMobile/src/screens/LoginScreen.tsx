@@ -54,7 +54,22 @@ const LoginScreen = ({ navigation }: any) => {
       const data = JSON.parse(text);
 
       if (response.ok) {
-        await AsyncStorage.setItem('token', data.token);
+
+        console.log('TOKEN RECU =', data.token);
+
+        await AsyncStorage.setItem(
+          'token',
+          data.token
+        );
+
+        const savedToken =
+          await AsyncStorage.getItem('token');
+
+        console.log(
+          'TOKEN SAUVEGARDE =',
+          savedToken
+        );
+
         setToken(data.token);
       } else {
         Alert.alert('Erreur', data.error || data.message || 'Connexion échouée');

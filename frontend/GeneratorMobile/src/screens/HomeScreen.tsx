@@ -2,12 +2,14 @@
  * =====================================================
  * HOME SCREEN - GÉNÉRATEUR DE MEMES
  * =====================================================
- * ✔ Navigation vers tous les modules
+ * ✔ Navigation
  * ✔ Test JWT backend
- * ✔ Logout propre
+ * ✔ Vérification token AsyncStorage
+ * ✔ Logout
+ * =====================================================
  */
 
-import React, { useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,106 +27,198 @@ const HomeScreen = ({ navigation }: any) => {
   const { setToken } = useContext(AuthContext);
 
   /**
-   * 🧪 Test route protégée backend
+   * Vérifie le token au chargement
+   */
+  useEffect(() => {
+    const checkToken = async () => {
+      const token = await AsyncStorage.getItem('token');
+
+      console.log('====================');
+      console.log('TOKEN STOCKE =');
+      console.log(token);
+      console.log('====================');
+    };
+
+    checkToken();
+  }, []);
+
+  /**
+   * Test route protégée
    */
   const testProtectedRoute = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
 
+      console.log('TOKEN TEST =', token);
+
       if (!token) {
-        Alert.alert('Erreur', 'Token introuvable');
+        Alert.alert(
+          'Erreur',
+          'Token introuvable dans AsyncStorage'
+        );
         return;
       }
 
-      const response = await fetch(`${BACKEND_URL}/api/test`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token.trim()}`,
-          'ngrok-skip-browser-warning': 'true',
-        },
-      });
+      const response = await fetch(
+        `${BACKEND_URL}/api/test`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'ngrok-skip-browser-warning': 'true',
+          },
+        }
+      );
 
       const text = await response.text();
-      const data = JSON.parse(text);
 
-      Alert.alert('Backend OK ✅', JSON.stringify(data, null, 2));
+      console.log('RESPONSE TEST =', text);
+
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        Alert.alert(
+          'Erreur',
+          'Réponse backend invalide'
+        );
+        return;
+      }
+
+      if (response.ok) {
+        Alert.alert(
+          'Backend OK ✅',
+          JSON.stringify(data, null, 2)
+        );
+      } else {
+        Alert.alert(
+          'Erreur JWT',
+          data.message || 'Erreur inconnue'
+        );
+      }
     } catch (error: any) {
-      Alert.alert('Erreur réseau', error.message);
+      console.log(error);
+
+      Alert.alert(
+        'Erreur réseau',
+        error.message
+      );
     }
   };
 
   /**
-   * 🚪 Logout propre
+   * Logout
    */
   const logout = async () => {
     try {
       await AsyncStorage.removeItem('token');
       setToken(null);
     } catch (error) {
-      console.log('Logout error:', error);
+      console.log(error);
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
 
-      {/* TITRE */}
-      <Text style={styles.title}>🎭 Générateur de Memes</Text>
-      <Text style={styles.subtitle}>Audio + Image + IA Gemini</Text>
+      <Text style={styles.title}>
+        🎭 Générateur de Memes
+      </Text>
 
-      {/* 🎤 AUDIO */}
+      <Text style={styles.subtitle}>
+        Audio + Image + Gemini
+      </Text>
+
       <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate('AudioRecord')}
+        onPress={() =>
+          navigation.navigate('AudioRecord')
+        }
       >
-        <Text style={styles.buttonText}>🎤 Meme Audio</Text>
+        <Text style={styles.buttonText}>
+          🎤 Meme Audio
+        </Text>
       </TouchableOpacity>
 
-      {/* 🖼 IMAGE */}
       <TouchableOpacity
-        style={[styles.button, { backgroundColor: '#ff9800' }]}
-        onPress={() => navigation.navigate('ImageUpload')}
+        style={[
+          styles.button,
+          { backgroundColor: '#ff9800' },
+        ]}
+        onPress={() =>
+          navigation.navigate('ImageUpload')
+        }
       >
-        <Text style={styles.buttonText}>🖼 Meme Image</Text>
+        <Text style={styles.buttonText}>
+          🖼 Meme Image
+        </Text>
       </TouchableOpacity>
 
-      {/* 👤 PROFIL */}
       <TouchableOpacity
-        style={[styles.button, { backgroundColor: '#6f42c1' }]}
-        onPress={() => navigation.navigate('Profile')}
+        style={[
+          styles.button,
+          { backgroundColor: '#6f42c1' },
+        ]}
+        onPress={() =>
+          navigation.navigate('Profile')
+        }
       >
-        <Text style={styles.buttonText}>👤 Mon Profil</Text>
+        <Text style={styles.buttonText}>
+          👤 Mon Profil
+        </Text>
       </TouchableOpacity>
 
-      {/* 📜 HISTORIQUE */}
       <TouchableOpacity
-        style={[styles.button, { backgroundColor: '#6c757d' }]}
-        onPress={() => navigation.navigate('History')}
+        style={[
+          styles.button,
+          { backgroundColor: '#6c757d' },
+        ]}
+        onPress={() =>
+          navigation.navigate('History')
+        }
       >
-        <Text style={styles.buttonText}>📜 Historique</Text>
+        <Text style={styles.buttonText}>
+          📜 Historique
+        </Text>
       </TouchableOpacity>
 
-      {/* 🔐 TEST JWT */}
       <TouchableOpacity
-        style={[styles.button, { backgroundColor: '#28a745' }]}
+        style={[
+          styles.button,
+          { backgroundColor: '#28a745' },
+        ]}
         onPress={testProtectedRoute}
       >
-        <Text style={styles.buttonText}>🔐 Tester Backend</Text>
+        <Text style={styles.buttonText}>
+          🔐 Tester Backend
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.button, { backgroundColor: '#6f42c1' }]}
-        onPress={() => navigation.navigate('GeminiMeme')}
+        style={[
+          styles.button,
+          { backgroundColor: '#6f42c1' },
+        ]}
+        onPress={() =>
+          navigation.navigate('GeminiMeme')
+        }
       >
-        <Text style={styles.buttonText}>🤖 Gemini IA Meme</Text>
+        <Text style={styles.buttonText}>
+          🤖 Gemini IA Meme
+        </Text>
       </TouchableOpacity>
 
-      {/* 🚪 LOGOUT */}
       <TouchableOpacity
-        style={[styles.button, { backgroundColor: '#dc3545' }]}
+        style={[
+          styles.button,
+          { backgroundColor: '#dc3545' },
+        ]}
         onPress={logout}
       >
-        <Text style={styles.buttonText}>🚪 Logout</Text>
+        <Text style={styles.buttonText}>
+          🚪 Logout
+        </Text>
       </TouchableOpacity>
 
     </ScrollView>

@@ -1,52 +1,46 @@
 /**
  * =====================================================
- * Middleware JWT
- * Vérifie qu'un utilisateur possède un token valide
+ * MIDDLEWARE JWT - AUTH
  * =====================================================
+ * ✔ Vérifie token JWT dans chaque requête protégée
+ * ✔ Messages d'erreur clairs
  */
 
 const jwt = require('jsonwebtoken');
 
-/**
- * Middleware d'authentification
- */
 const authenticateToken = (req, res, next) => {
   try {
-
-    // Header attendu :
-    // Authorization: Bearer TOKEN
-
     const authHeader = req.headers.authorization;
 
+    // Pas de header Authorization
     if (!authHeader) {
-      return res.status(401).json({
-        message: 'Token manquant'
-      });
+      return res.status(401).json({ message: 'Token manquant' });
     }
 
+    // Format incorrect
+    if (!authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Format Bearer invalide' });
+    }
+
+    // Extrait le token
     const token = authHeader.split(' ')[1];
 
-    if (!token) {
-      return res.status(401).json({
-        message: 'Token invalide'
-      });
-    }
+    // Vérifie et décode le token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
-
+    // Attache l'utilisateur à la requête
     req.user = decoded;
 
     next();
 
   } catch (error) {
+    // Token expiré
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token expiré' });
+    }
 
-    return res.status(403).json({
-      message: 'Token expiré ou invalide'
-    });
-
+    // Token invalide
+    return res.status(403).json({ message: 'Token invalide' });
   }
 };
 

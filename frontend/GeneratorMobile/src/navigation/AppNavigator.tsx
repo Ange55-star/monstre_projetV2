@@ -12,6 +12,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import MemePreviewScreen from '../screens/MemePreviewScreen';
 import GeminiMemeScreen from '../screens/GeminiMemeScreen';
+
 const Stack = createStackNavigator();
 
 export const AppNavigator = () => {
@@ -22,6 +23,7 @@ export const AppNavigator = () => {
 
       {token == null ? (
         <>
+          {/* Login EN PREMIER = écran par défaut */}
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
         </>
@@ -29,8 +31,8 @@ export const AppNavigator = () => {
         <>
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="AudioRecord" component={AudioRecordingScreen} />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
-            <Stack.Screen name="History" component={HistoryScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="History" component={HistoryScreen} />
           <Stack.Screen name="ImageUpload" component={ImageUploadScreen} />
           <Stack.Screen name="MemePreview" component={MemePreviewScreen} />
           <Stack.Screen name="GeminiMeme" component={GeminiMemeScreen} />
