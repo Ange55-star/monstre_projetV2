@@ -3,9 +3,9 @@
  * IMAGE UPLOAD SCREEN
  * =====================================================
  * ✔ Sélection image galerie Android
- * ✔ Upload backend via ngrok (stable)
- * ✔ Preview image locale + URL backend
- * ✔ Navigation vers MemePreview après upload
+ * ✔ Upload backend
+ * ✔ Groq LLaMA Vision analyse l'image → caption drôle
+ * ✔ Navigation vers MemePreview avec caption
  * ✔ Zéro dépendance Gradle instable
  */
 
@@ -28,11 +28,14 @@ import { BACKEND_URL } from '../config';
 
 const ImageUploadScreen = ({ navigation }: any) => {
   const [image, setImage] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [caption, setCaption] = useState('');
+  const [loadingUpload, setLoadingUpload] = useState(false);
+  const [loadingCaption, setLoadingCaption] = useState(false);
 
   /**
-   * 📸 Ouvrir galerie et choisir image
+   * 📸 Choisir image depuis galerie
    */
   const pickImage = async () => {
     const result = await launchImageLibrary({
@@ -43,40 +46,36 @@ const ImageUploadScreen = ({ navigation }: any) => {
     if (result.didCancel) return;
 
     const asset = result.assets?.[0];
-
     if (!asset?.uri) {
       Alert.alert('Erreur', 'Image invalide');
       return;
     }
 
-    // Reset ancien upload si on choisit une nouvelle image
     setImage(asset);
+    setUploadedFilename(null);
     setUploadedUrl(null);
+    setCaption('');
   };
 
   /**
-   * 🚀 Upload image vers backend Express (Multer + JWT)
+   * 🚀 Upload image vers backend
    */
   const uploadImage = async () => {
     try {
       if (!image?.uri) {
-        Alert.alert('Erreur', 'Aucune image sélectionnée');
+        Alert.alert('Erreur', "Choisis une image d'abord");
         return;
       }
 
-      setLoading(true);
+      setLoadingUpload(true);
 
-      // Récupère le token JWT depuis AsyncStorage
       const token = await AsyncStorage.getItem('token');
-
       if (!token) {
-        Alert.alert('Erreur', 'Token manquant, reconnecte-toi');
+        Alert.alert('Erreur', 'Reconnecte-toi');
         return;
       }
 
-      // Prépare le FormData (Android safe)
       const formData = new FormData();
-
       formData.append('image', {
         uri: Platform.OS === 'android'
           ? image.uri
@@ -85,83 +84,185 @@ const ImageUploadScreen = ({ navigation }: any) => {
         type: image.type || 'image/jpeg',
       } as any);
 
-      console.log(
-      'URL UPLOAD =',
-      `${BACKEND_URL}/api/images/upload`
-      );
-      // Envoi vers backend
       const response = await fetch(`${BACKEND_URL}/api/images/upload`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'ngrok-skip-browser-warning': 'true',
-          // ⚠️ NE PAS mettre Content-Type ici (FormData le gère seul)
         },
         body: formData,
       });
 
-      const text = await response.text();
-      console.log('UPLOAD RESPONSE:', text);
-
-      const data = JSON.parse(text);
+      const data = await response.json();
 
       if (response.ok) {
+        setUploadedFilename(data.filename);
         setUploadedUrl(data.url);
-
-        // Navigue vers MemePreview avec l'URL de l'image
-        navigation.navigate('MemePreview', { imageUrl: data.url });
       } else {
-        Alert.alert('Erreur', data.message || 'Upload échoué');
+        Alert.alert('Erreur upload', data.message || 'Erreur serveur');
       }
     } catch (error: any) {
-      console.log('UPLOAD ERROR:', error);
       Alert.alert('Erreur réseau', error.message);
     } finally {
-      setLoading(false);
+      setLoadingUpload(false);
     }
+  };
+
+  /**
+   * 🤖 Groq Vision → analyse image → caption drôle
+   */
+  const generateCaption = async () => {
+    Alert.alert('DEBUG', `filename = ${uploadedFilename}\nURL = ${BACKEND_URL}`);
+
+    if (!uploadedFilename) {
+      Alert.alert('Erreur', "Upload l'image d'abord");
+      return;
+    }
+
+    try {
+      setLoadingCaption(true);
+      const token = await AsyncStorage.getItem('token');
+
+      Alert.alert('DEBUG2', `token = ${token ? 'OK' : 'NULL'}`);
+
+      if (!token) {
+        Alert.alert('Erreur', 'Reconnecte-toi');
+        return;
+      }
+
+      const response = await fetch(`${BACKEND_URL}/api/groq/caption-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ filename: uploadedFilename }),
+      });
+
+      const text = await response.text();
+      Alert.alert('REPONSE', text);
+
+    } catch (error: any) {
+      Alert.alert('CATCH ERROR', error.message);
+    } finally {
+      setLoadingCaption(false);
+    }
+  };
+    };
+  /**
+   * 🎭 Créer le meme final
+   */
+  const createMeme = () => {
+    if (!uploadedUrl) {
+      Alert.alert('Erreur', "Upload une image d'abord");
+      return;
+    }
+    navigation.navigate('MemePreview', {
+      imageUrl: uploadedUrl,
+      caption: caption || null,
+      fromAudio: false,
+    });
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
 
-      <Text style={styles.title}>🖼 Upload Image Meme</Text>
+      <Text style={styles.title}>🖼 Meme Image</Text>
+      <Text style={styles.subtitle}>
+        Choisis une image → IA génère une caption drôle
+      </Text>
 
-      {/* PREVIEW IMAGE LOCALE */}
+      {/* PREVIEW IMAGE */}
       {image ? (
         <Image source={{ uri: image.uri }} style={styles.preview} />
       ) : (
         <View style={styles.placeholder}>
+          <Text style={styles.placeholderIcon}>🖼</Text>
           <Text style={styles.placeholderText}>Aucune image choisie</Text>
         </View>
       )}
 
-      {/* URL UPLOADÉE */}
-      {uploadedUrl && (
-        <Text style={styles.url} numberOfLines={2}>
-          ✅ {uploadedUrl}
-        </Text>
+      {/* CAPTION GÉNÉRÉE */}
+      {caption !== '' && (
+        <View style={styles.captionBox}>
+          <Text style={styles.captionLabel}>🤖 Caption IA :</Text>
+          <Text style={styles.captionText}>"{caption}"</Text>
+        </View>
       )}
 
-      {/* CHOISIR IMAGE */}
+      {/* ÉTAPE 1 — CHOISIR IMAGE */}
       <TouchableOpacity style={styles.button} onPress={pickImage}>
-        <Text style={styles.buttonText}>📷 Choisir une image</Text>
+        <Text style={styles.buttonText}>📷 1. Choisir une image</Text>
       </TouchableOpacity>
 
-      {/* UPLOADER */}
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: '#28a745' }]}
-        onPress={uploadImage}
-        disabled={loading}
-      >
-        {loading
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.buttonText}>🚀 Uploader</Text>
-        }
-      </TouchableOpacity>
+      {/* ÉTAPE 2 — UPLOAD */}
+      {image && !uploadedFilename && (
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: '#28a745' }]}
+          onPress={uploadImage}
+          disabled={loadingUpload}
+        >
+          {loadingUpload
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.buttonText}>🚀 2. Uploader l'image</Text>
+          }
+        </TouchableOpacity>
+      )}
+
+      {/* STATUS UPLOAD */}
+      {uploadedFilename && (
+        <Text style={styles.uploadedText}>✅ Image uploadée</Text>
+      )}
+
+      {/* ÉTAPE 3 — ANALYSER AVEC IA */}
+      {uploadedFilename && caption === '' && (
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: '#6f42c1' }]}
+          onPress={generateCaption}
+          disabled={loadingCaption}
+        >
+          {loadingCaption
+            ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator color="#fff" />
+                <Text style={[styles.buttonText, { marginLeft: 10 }]}>
+                  IA analyse...
+                </Text>
+              </View>
+            )
+            : <Text style={styles.buttonText}>🤖 3. Analyser avec IA</Text>
+          }
+        </TouchableOpacity>
+      )}
+
+      {/* ÉTAPE 4 — CRÉER MEME */}
+      {uploadedUrl && caption !== '' && (
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: '#ff9800' }]}
+          onPress={createMeme}
+        >
+          <Text style={styles.buttonText}>🎭 4. Créer le Meme</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* RECOMMENCER */}
+      {image && (
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: '#6c757d' }]}
+          onPress={() => {
+            setImage(null);
+            setUploadedFilename(null);
+            setUploadedUrl(null);
+            setCaption('');
+          }}
+        >
+          <Text style={styles.buttonText}>🔄 Recommencer</Text>
+        </TouchableOpacity>
+      )}
 
       {/* RETOUR */}
       <TouchableOpacity
-        style={[styles.button, { backgroundColor: '#6c757d' }]}
+        style={[styles.button, { backgroundColor: '#aaa' }]}
         onPress={() => navigation.goBack()}
       >
         <Text style={styles.buttonText}>← Retour</Text>
@@ -183,32 +284,68 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 8,
     marginTop: 40,
   },
+  subtitle: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
   preview: {
-    width: 250,
-    height: 250,
+    width: 260,
+    height: 260,
     borderRadius: 12,
     marginBottom: 16,
   },
   placeholder: {
-    width: 250,
-    height: 250,
+    width: 260,
+    height: 200,
     borderRadius: 12,
     backgroundColor: '#e0e0e0',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
+  placeholderIcon: {
+    fontSize: 50,
+    marginBottom: 8,
+  },
   placeholderText: {
     color: '#999',
+    fontSize: 14,
   },
-  url: {
-    fontSize: 11,
-    color: '#333',
-    marginBottom: 16,
+  uploadedText: {
+    fontSize: 13,
+    color: '#28a745',
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  captionBox: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    width: '100%',
+    elevation: 2,
+  },
+  captionLabel: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 6,
+  },
+  captionText: {
+    fontSize: 16,
+    fontStyle: 'italic',
+    color: '#007AFF',
+    fontWeight: '700',
     textAlign: 'center',
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   button: {
     backgroundColor: '#007AFF',
@@ -220,7 +357,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
 });

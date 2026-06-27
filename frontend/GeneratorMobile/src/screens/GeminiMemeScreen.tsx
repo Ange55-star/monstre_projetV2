@@ -1,9 +1,9 @@
 /**
  * =====================================================
- * GEMINI MEME SCREEN - FRONTEND
+ * GROQ MEME SCREEN (anciennement Gemini)
  * =====================================================
- * ✔ Saisie texte → génération caption IA
- * ✔ Upload image → analyse Gemini Vision
+ * ✔ Saisie texte → génération caption IA (Groq LLaMA)
+ * ✔ Upload image → analyse Groq Vision
  * ✔ Choix parmi 3 captions
  * ✔ Zéro dépendance Gradle instable
  */
@@ -27,23 +27,16 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import { BACKEND_URL } from '../config';
 
 const GeminiMemeScreen = ({ navigation }: any) => {
-  // États texte
   const [text, setText] = useState('');
   const [caption, setCaption] = useState('');
   const [captions, setCaptions] = useState<string[]>([]);
   const [selectedCaption, setSelectedCaption] = useState('');
-
-  // États image
   const [image, setImage] = useState<any>(null);
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
-
-  // États chargement
   const [loadingCaption, setLoadingCaption] = useState(false);
   const [loadingMultiple, setLoadingMultiple] = useState(false);
   const [loadingImage, setLoadingImage] = useState(false);
   const [loadingImageCaption, setLoadingImageCaption] = useState(false);
-
-  // Mode actif : 'text' ou 'image'
   const [mode, setMode] = useState<'text' | 'image'>('text');
 
   /**
@@ -55,26 +48,22 @@ const GeminiMemeScreen = ({ navigation }: any) => {
 
   /**
    * =====================================================
-   * 1. GÉNÉRER CAPTION DEPUIS TEXTE
+   * 1. GÉNÉRER 1 CAPTION DEPUIS TEXTE (Groq LLaMA)
    * =====================================================
    */
   const generateCaptionFromText = async () => {
     if (!text.trim()) {
-      Alert.alert('Erreur', 'Saisis un texte d\'abord');
+      Alert.alert('Erreur', "Saisis un texte d'abord");
       return;
     }
-
     try {
       setLoadingCaption(true);
       setCaption('');
 
       const token = await getToken();
-      if (!token) {
-        Alert.alert('Erreur', 'Reconnecte-toi');
-        return;
-      }
+      if (!token) { Alert.alert('Erreur', 'Reconnecte-toi'); return; }
 
-      const response = await fetch(`${BACKEND_URL}/api/gemini/caption-text`, {
+      const response = await fetch(`${BACKEND_URL}/api/groq/caption-text`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -90,7 +79,7 @@ const GeminiMemeScreen = ({ navigation }: any) => {
         setCaption(data.caption);
         setSelectedCaption(data.caption);
       } else {
-        Alert.alert('Erreur', data.message || 'Erreur Gemini');
+        Alert.alert('Erreur', data.message || 'Erreur IA');
       }
     } catch (error: any) {
       Alert.alert('Erreur réseau', error.message);
@@ -101,15 +90,14 @@ const GeminiMemeScreen = ({ navigation }: any) => {
 
   /**
    * =====================================================
-   * 2. GÉNÉRER 3 CAPTIONS (CHOIX)
+   * 2. GÉNÉRER 3 CAPTIONS (Groq LLaMA)
    * =====================================================
    */
   const generateMultipleCaptions = async () => {
     if (!text.trim()) {
-      Alert.alert('Erreur', 'Saisis un texte d\'abord');
+      Alert.alert('Erreur', "Saisis un texte d'abord");
       return;
     }
-
     try {
       setLoadingMultiple(true);
       setCaptions([]);
@@ -117,7 +105,7 @@ const GeminiMemeScreen = ({ navigation }: any) => {
       const token = await getToken();
       if (!token) return;
 
-      const response = await fetch(`${BACKEND_URL}/api/gemini/captions-multiple`, {
+      const response = await fetch(`${BACKEND_URL}/api/groq/captions-multiple`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -147,10 +135,7 @@ const GeminiMemeScreen = ({ navigation }: any) => {
    * =====================================================
    */
   const pickAndUploadImage = async () => {
-    const result = await launchImageLibrary({
-      mediaType: 'photo',
-      quality: 1,
-    });
+    const result = await launchImageLibrary({ mediaType: 'photo', quality: 1 });
 
     if (result.didCancel) return;
 
@@ -161,7 +146,6 @@ const GeminiMemeScreen = ({ navigation }: any) => {
     setUploadedFilename(null);
     setCaption('');
 
-    // Upload automatique après sélection
     try {
       setLoadingImage(true);
 
@@ -203,15 +187,14 @@ const GeminiMemeScreen = ({ navigation }: any) => {
 
   /**
    * =====================================================
-   * 4. GÉNÉRER CAPTION DEPUIS IMAGE (GEMINI VISION)
+   * 4. GÉNÉRER CAPTION DEPUIS IMAGE (Groq Vision)
    * =====================================================
    */
   const generateCaptionFromImage = async () => {
     if (!uploadedFilename) {
-      Alert.alert('Erreur', 'Upload une image d\'abord');
+      Alert.alert('Erreur', "Upload une image d'abord");
       return;
     }
-
     try {
       setLoadingImageCaption(true);
       setCaption('');
@@ -219,7 +202,7 @@ const GeminiMemeScreen = ({ navigation }: any) => {
       const token = await getToken();
       if (!token) return;
 
-      const response = await fetch(`${BACKEND_URL}/api/gemini/caption-image`, {
+      const response = await fetch(`${BACKEND_URL}/api/groq/caption-image`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -246,16 +229,14 @@ const GeminiMemeScreen = ({ navigation }: any) => {
 
   /**
    * =====================================================
-   * 5. UTILISER LA CAPTION SÉLECTIONNÉE
+   * 5. CRÉER LE MEME FINAL
    * =====================================================
    */
   const useCaption = () => {
     if (!selectedCaption) {
-      Alert.alert('Erreur', 'Sélectionne une caption d\'abord');
+      Alert.alert('Erreur', 'Sélectionne une caption');
       return;
     }
-
-    // Navigation vers MemePreview avec caption + image
     navigation.navigate('MemePreview', {
       imageUrl: uploadedFilename
         ? `${BACKEND_URL}/uploads/images/${uploadedFilename}`
@@ -268,8 +249,8 @@ const GeminiMemeScreen = ({ navigation }: any) => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
 
-      <Text style={styles.title}>🤖 Gemini IA Meme</Text>
-      <Text style={styles.subtitle}>Génère une caption IA pour ton meme</Text>
+      <Text style={styles.title}>🤖 IA Meme Generator</Text>
+      <Text style={styles.subtitle}>Groq LLaMA génère une caption drôle</Text>
 
       {/* SÉLECTEUR MODE */}
       <View style={styles.modeSelector}>
@@ -281,7 +262,6 @@ const GeminiMemeScreen = ({ navigation }: any) => {
             📝 Texte
           </Text>
         </TouchableOpacity>
-
         <TouchableOpacity
           style={[styles.modeBtn, mode === 'image' && styles.modeBtnActive]}
           onPress={() => setMode('image')}
@@ -292,24 +272,22 @@ const GeminiMemeScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </View>
 
-      {/* ==================== MODE TEXTE ==================== */}
+      {/* MODE TEXTE */}
       {mode === 'text' && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Décris le contexte de ton meme</Text>
 
           <TextInput
             style={styles.input}
-            placeholder="Ex: Quand le prof dit 'c'est facile' mais personne comprend..."
+            placeholder="Ex: Quand le prof dit c'est facile mais personne comprend..."
             value={text}
             onChangeText={setText}
             multiline
             numberOfLines={4}
             maxLength={500}
           />
-
           <Text style={styles.charCount}>{text.length}/500</Text>
 
-          {/* BOUTON 1 CAPTION */}
           <TouchableOpacity
             style={styles.button}
             onPress={generateCaptionFromText}
@@ -321,7 +299,6 @@ const GeminiMemeScreen = ({ navigation }: any) => {
             }
           </TouchableOpacity>
 
-          {/* BOUTON 3 CAPTIONS */}
           <TouchableOpacity
             style={[styles.button, { backgroundColor: '#6f42c1' }]}
             onPress={generateMultipleCaptions}
@@ -335,17 +312,15 @@ const GeminiMemeScreen = ({ navigation }: any) => {
         </View>
       )}
 
-      {/* ==================== MODE IMAGE ==================== */}
+      {/* MODE IMAGE */}
       {mode === 'image' && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Upload une image → Gemini l'analyse</Text>
+          <Text style={styles.sectionTitle}>Upload une image → IA l'analyse</Text>
 
-          {/* PREVIEW IMAGE */}
           {image && (
             <Image source={{ uri: image.uri }} style={styles.preview} />
           )}
 
-          {/* BOUTON PICK IMAGE */}
           <TouchableOpacity
             style={styles.button}
             onPress={pickAndUploadImage}
@@ -357,14 +332,10 @@ const GeminiMemeScreen = ({ navigation }: any) => {
             }
           </TouchableOpacity>
 
-          {/* STATUS UPLOAD */}
           {uploadedFilename && (
-            <Text style={styles.uploadedText}>
-              ✅ Image prête : {uploadedFilename}
-            </Text>
+            <Text style={styles.uploadedText}>✅ Image prête</Text>
           )}
 
-          {/* BOUTON ANALYSER */}
           {uploadedFilename && (
             <TouchableOpacity
               style={[styles.button, { backgroundColor: '#ff9800' }]}
@@ -373,14 +344,12 @@ const GeminiMemeScreen = ({ navigation }: any) => {
             >
               {loadingImageCaption
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.buttonText}>🔍 Analyser avec Gemini</Text>
+                : <Text style={styles.buttonText}>🔍 Analyser avec IA</Text>
               }
             </TouchableOpacity>
           )}
         </View>
       )}
-
-      {/* ==================== RÉSULTATS ==================== */}
 
       {/* 1 CAPTION */}
       {caption !== '' && (
@@ -414,7 +383,7 @@ const GeminiMemeScreen = ({ navigation }: any) => {
         </View>
       )}
 
-      {/* BOUTON UTILISER */}
+      {/* CRÉER MEME */}
       {(caption || selectedCaption) && (
         <TouchableOpacity
           style={[styles.button, { backgroundColor: '#28a745' }]}
@@ -531,6 +500,7 @@ const styles = StyleSheet.create({
     color: '#28a745',
     marginBottom: 10,
     textAlign: 'center',
+    fontWeight: '600',
   },
   resultBox: {
     backgroundColor: '#fff',

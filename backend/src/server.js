@@ -15,9 +15,8 @@ const sequelize = require('./config/db');
 const authRoutes = require('./routes/auth.routes');
 const testRoutes = require('./routes/test.routes');
 const imageRoutes = require('./routes/image.routes');
-const geminiRoutes = require('./routes/gemini.routes');
-const memeRoutes =
-require('./routes/meme.routes');
+const groqRoutes = require('./routes/groq.routes');
+const memeRoutes = require('./routes/meme.routes');
 
 const app = express();
 
@@ -26,24 +25,28 @@ const app = express();
  * MIDDLEWARES
  * =====================================================
  */
-
 app.use(cors());
-
 app.use(express.json());
-
 app.use(express.urlencoded({ extended: true }));
+
+app.use('/api/memes', memeRoutes);
+
+// 🔥 ICI TU AJOUTES LE PING
+app.get('/ping', (req, res) => {
+  console.log('PING OK');
+  res.json({ ok: true });
+});
+
+console.log("JWT_SECRET =", process.env.JWT_SECRET);
 
 /**
  * =====================================================
- * STATIC FILES
+ * FICHIERS STATIQUES (UPLOADS)
  * =====================================================
  */
-
 app.use(
   '/uploads',
-  express.static(
-    path.join(__dirname, '..', 'uploads')
-  )
+  express.static(path.join(__dirname, '..', 'uploads'))
 );
 
 /**
@@ -51,38 +54,29 @@ app.use(
  * ROUTES
  * =====================================================
  */
-
 app.use('/api/auth', authRoutes);
 app.use('/api/test', testRoutes);
 app.use('/api/images', imageRoutes);
-app.use('/api/gemini', geminiRoutes);
+app.use('/api/groq', groqRoutes);
 app.use('/api/memes', memeRoutes);
 
 /**
  * =====================================================
- * DATABASE
+ * BASE DE DONNÉES
  * =====================================================
  */
-
 sequelize
   .sync({ force: false })
-  .then(() => {
-    console.log('✔ DB OK');
-  })
-  .catch((err) => {
-    console.log('❌ DB ERROR:', err);
-  });
+  .then(() => console.log('✔ DB OK'))
+  .catch((err) => console.log('❌ DB ERROR:', err));
 
 /**
  * =====================================================
  * START SERVER
  * =====================================================
  */
-
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(
-    `🚀 Server running on http://0.0.0.0:${PORT}`
-  );
+  console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
 });
